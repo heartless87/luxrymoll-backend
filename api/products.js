@@ -6,11 +6,19 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { files: 7 }
 });
-res.setHeader("Access-Control-Allow-Origin", "*");
-res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
 const handler = nextConnect();
+handler.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
+    }
+
+    next();
+});
 
 let client;
 
@@ -64,4 +72,5 @@ export const config = {
 };
 
 export default handler;
+
 
