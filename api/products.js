@@ -6,6 +6,9 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { files: 7 }
 });
+res.setHeader("Access-Control-Allow-Origin", "*");
+res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
 const handler = nextConnect();
 
@@ -61,3 +64,4 @@ export const config = {
 };
 
 export default handler;
+
