@@ -1,41 +1,63 @@
 import { MongoClient } from "mongodb";
+import multer from "multer";
+import nextConnect from "next-connect";
 
-export default async function handler(req, res) {
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { files: 7 }
+});
 
-  // CORS FIX
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+const handler = nextConnect();
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+let client;
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
-  try {
-    const client = await MongoClient.connect(process.env.MONGO_URI);
-    const db = client.db("Product");
-
-    const { title, description, originalPrice, sellingPrice, images } = req.body;
-
-    const result = await db.collection("Prodlist").insertOne({
-      title,
-      description,
-      originalPrice,
-      sellingPrice,
-      images,
-      createdAt: new Date()
-    });
-
-    client.close();
-
-    return res.json({ success: true, id: result.insertedId });
-
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, message: "DB Error" });
-  }
+async function connectDB() {
+    if (!client) {
+        client = new MongoClient(process.env.MONGO_URI);
+        await client.connect();
+    }
+    return client.db("Product").collection("Prodlist");
 }
+
+handler.use(upload.array("images"));
+
+handler.post(async (req, res) => {
+    try {
+        const { title, description, originalPrice, sellingPrice } = req.body;
+
+        const imagesBase64 = (req.files || []).map(img =>
+            `data:${img.mimetype};base64,${img.buffer.toString("base64")}`
+        );
+
+        const col = await connectDB();
+
+        const result = await col.insertOne({
+            title,
+            description,
+            originalPrice,
+            sellingPrice,
+            images: imagesBase64,
+            createdAt: new Date()
+        });
+
+        res.status(200).json({
+            success: true,
+            id: result.insertedId
+        });
+
+    } catch (e) {
+        console.error("Error:", e);
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+    }
+});
+
+export const config = {
+    api: {
+        bodyParser: false
+    }
+};
+
+export default handler;
